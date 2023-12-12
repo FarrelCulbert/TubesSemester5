@@ -1,0 +1,43 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Inisialisasi pin untuk sensor suhu DS18B20
+#define SENSOR_PIN 4
+
+// Inisialisasi pin PWM-to-voltage untuk mengendalikan LED
+#define LED_PIN 9
+
+// Inisialisasi objek sensor suhu DS18B20
+OneWire oneWire(SENSOR_PIN);
+DallasTemperature sensors(&oneWire);
+
+void setup() {
+  // Inisialisasi pin LED sebagai OUTPUT
+  pinMode(LED_PIN, OUTPUT);
+
+  // Memulai komunikasi dengan sensor suhu
+  sensors.begin();
+
+  // Memulai koneksi Serial
+  Serial.begin(9600);
+}
+
+void loop() {
+  // Membaca suhu dari sensor
+  sensors.requestTemperatures();
+  float suhu = sensors.getTempCByIndex(0);
+
+  // Mengonversi suhu menjadi nilai PWM untuk mengendalikan kecerahan LED
+  int brightness = map(suhu, 10, 40, 255, 90);
+  analogWrite(LED_PIN, brightness);
+
+  // Menampilkan nilai PWM dan suhu pada Serial Monitor
+  Serial.print("PWM: ");
+  Serial.print(brightness);
+  Serial.print("\tSuhu: ");
+  Serial.print(suhu);
+  Serial.println(" °C");
+
+  // Menunda sebentar sebelum membaca suhu lagi
+  delay(1000);
+}
