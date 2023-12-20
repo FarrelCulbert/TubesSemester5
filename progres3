@@ -1,0 +1,67 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// Pin yang terhubung ke sensor DS18B20
+const int sensorPin = D2;
+const int motorDriverPin = D1; // Pin output PWM ke motor driver
+#define SDA D5
+#define SCL D6
+
+OneWire oneWire(sensorPin);
+DallasTemperature sensors(&oneWire);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Definisikan karakter simbol derajat
+byte degreeSymbol[8] = {
+  B00110,
+  B01001,
+  B01001,
+  B00110,
+  B00000,
+  B00000,
+  B00000,
+  B00000
+};
+
+void setup() {
+  Serial.begin(115200);
+  sensors.begin();
+  pinMode(motorDriverPin, OUTPUT);
+  Wire.begin(SDA, SCL);
+  lcd.begin();
+
+  // Buat karakter simbol derajat pada lokasi 0
+  lcd.createChar(0, degreeSymbol);
+}
+
+void loop() {
+  sensors.requestTemperatures();
+  float temperatureC = sensors.getTempCByIndex(0);
+
+  Serial.print("Suhu: ");
+  Serial.print(temperatureC);
+  Serial.print(" °C | ");
+
+  int pwmValue = map(temperatureC, 15, 40, 255, 0);
+  pwmValue = constrain(pwmValue, 0, 255);
+
+  analogWrite(motorDriverPin, pwmValue);
+  Serial.print("PWM: ");
+  Serial.println(pwmValue);
+
+  //LCD
+  lcd.setCursor(0, 0);
+  lcd.print("Suhu: ");
+  lcd.print(temperatureC);
+  lcd.write((uint8_t)0); // Menampilkan simbol derajat
+  lcd.print("C");
+
+  lcd.setCursor(0, 1);
+  lcd.print("PWM: ");
+  lcd.print(pwmValue);
+
+  delay(1000);
+  lcd.clear();
+}
