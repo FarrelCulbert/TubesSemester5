@@ -135,7 +135,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraPanas_AirPanas = new FuzzyRuleAntecedent();
     UdaraPanas_AirPanas->joinWithAND(UdaraPanas, AirPanas);
     FuzzyRuleConsequent *digital1_Redup_1 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Redup_1->addOutput(Redup);
+    digital1_Redup1->addOutput(Redup);
     FuzzyRule *fuzzyRule1 = new FuzzyRule(1, UdaraPanas_AirPanas, digital1_Redup_1);
     fuzzy->addFuzzyRule(fuzzyRule1);
 
@@ -143,7 +143,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraPanas_AirNormal = new FuzzyRuleAntecedent();
     UdaraPanas_AirNormal->joinWithAND(UdaraPanas, AirNormal);
     FuzzyRuleConsequent *digital1_Remang_2 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Remang_2->addOutput(Remang);
+    digital1_Remang2->addOutput(Remang);
     FuzzyRule *fuzzyRule2 = new FuzzyRule(2, UdaraPanas_AirNormal, digital1_Remang_2);
     fuzzy->addFuzzyRule(fuzzyRule2);
 
@@ -151,7 +151,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraPanas_AirDingin = new FuzzyRuleAntecedent();
     UdaraPanas_AirDingin->joinWithAND(UdaraPanas, AirDingin);
     FuzzyRuleConsequent *digital1_Terang_3 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Terang_3->addOutput(Terang);
+    digital1_Terang3->addOutput(Terang);
     FuzzyRule *fuzzyRule3 = new FuzzyRule(3, UdaraPanas_AirDingin, digital1_Terang_3);
     fuzzy->addFuzzyRule(fuzzyRule3);
 
@@ -159,7 +159,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraNormal_AirPanas = new FuzzyRuleAntecedent();
     UdaraNormal_AirPanas->joinWithAND(UdaraNormal, AirPanas);
     FuzzyRuleConsequent *digital1_Redup_4 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Redup_4->addOutput(Redup);
+    digital1_Redup4->addOutput(Redup);
     FuzzyRule *fuzzyRule4 = new FuzzyRule(4, UdaraNormal_AirPanas, digital1_Redup_4);
     fuzzy->addFuzzyRule(fuzzyRule4);
 
@@ -167,7 +167,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraNormal_AirNormal = new FuzzyRuleAntecedent();
     UdaraNormal_AirNormal->joinWithAND(UdaraNormal, AirNormal);
     FuzzyRuleConsequent *digital1_Remang_5 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Remang_5->addOutput(Remang);
+    digital1_Remang5->addOutput(Remang);
     FuzzyRule *fuzzyRule5 = new FuzzyRule(5, UdaraNormal_AirNormal, digital1_Remang_5);
     fuzzy->addFuzzyRule(fuzzyRule5);
 
@@ -175,7 +175,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraNormal_AirDingin = new FuzzyRuleAntecedent();
     UdaraNormal_AirDingin->joinWithAND(UdaraNormal, AirDingin);
     FuzzyRuleConsequent *digital1_Terang_6 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Terang_6->addOutput(Terang);
+    digital1_Terang6->addOutput(Terang);
     FuzzyRule *fuzzyRule6 = new FuzzyRule(6, UdaraNormal_AirDingin, digital1_Terang_6);
     fuzzy->addFuzzyRule(fuzzyRule6);
 
@@ -183,7 +183,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraDingin_AirPanas = new FuzzyRuleAntecedent();
     UdaraDingin_AirPanas->joinWithAND(UdaraDingin, AirPanas);
     FuzzyRuleConsequent *digital1_Remang_7 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Remang_7->addOutput(Remang);
+    digital1_Remang7->addOutput(Remang);
     FuzzyRule *fuzzyRule7 = new FuzzyRule(7, UdaraDingin_AirPanas, digital1_Remang_7);
     fuzzy->addFuzzyRule(fuzzyRule7);
 
@@ -191,7 +191,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraDingin_AirNormal = new FuzzyRuleAntecedent();
     UdaraDingin_AirNormal->joinWithAND(UdaraDingin, AirNormal);
     FuzzyRuleConsequent *digital1_Terang_8 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Terang_8->addOutput(Terang);
+    digital1_Terang8->addOutput(Terang);
     FuzzyRule *fuzzyRule8 = new FuzzyRule(8, UdaraDingin_AirNormal, digital1_Terang_8);
     fuzzy->addFuzzyRule(fuzzyRule8);
 
@@ -199,7 +199,7 @@ void setup()
     FuzzyRuleAntecedent *UdaraDingin_AirDingin = new FuzzyRuleAntecedent();
     UdaraDingin_AirDingin->joinWithAND(UdaraDingin, AirDingin);
     FuzzyRuleConsequent *digital1_Terang_9 = new FuzzyRuleConsequent(); // Corrected variable name
-    digital1_Terang_9->addOutput(Terang);
+    digital1_Terang9->addOutput(Terang);
     FuzzyRule *fuzzyRule9 = new FuzzyRule(9, UdaraDingin_AirDingin, digital1_Terang_9);
     fuzzy->addFuzzyRule(fuzzyRule9);
 }
