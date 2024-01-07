@@ -1,0 +1,288 @@
+//FUZZY LIBRARY
+#include <Fuzzy.h>
+//HARDWARE LIBRARY
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+//FIREBASE LIBRARY
+#include <Arduino.h>
+#if defined (ESP32)
+#include <WiFi.h>
+#elif defined (ESP8266)
+#include <ESP8266WiFi.h>
+#endif
+#include <Firebase_ESP_Client.h>
+#include "addons/TokenHelper.h"
+#include "addons/RTDBHelper.h"
+
+//WIFI SETTING
+#define WIFI_SSID "Ehee"
+#define WIFI_PASS "135791113"
+//FIREBASE SETTING
+#define API_KEY "AIzaSyCaNVRvnd5EfiOvyRYlp3SzSYFeZIi_KfA"
+#define DATABASE_URL "https://tubess5-default-rtdb.firebaseio.com/"
+
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+unsigned long sendDataPrevMillis = 0;
+
+//SETTING TYPE DATA
+int suhu;
+int ds18b20;
+int temperature;
+int fuzzyAir;
+bool signupOK = false;
+
+//PIN SETTING
+const int ds18b20Pin = D2; //PIN SENSOR SUHU
+const int driverPin = D1; //PIN MOTOR DRIVER
+#define SDA D5  //PIN LCD 
+#define SCL D6  //PIN LCD
+
+OneWire oneWire(ds18b20Pin);
+DallasTemperature sensors(&oneWire);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+byte simbolderajat[8] = {
+    B00110,
+    B01001,
+    B01001,
+    B00110,
+    B00000,
+    B00000,
+    B00000,
+    B00000
+};
+
+//FUZZY
+Fuzzy *fuzzy = new Fuzzy();
+//INPUT 1 DS18B20
+FuzzySet *AirDingin = new FuzzySet(15, 18, 21, 22);
+FuzzySet *AirNormal = new FuzzySet(23, 25, 28, 29);
+FuzzySet *AirPanas = new FuzzySet(30, 32, 35, 38);
+
+//INPUT 2 DHT11
+FuzzySet *UdaraDingin = new FuzzySet(1, 7, 14, 19);
+FuzzySet *UdaraNormal = new FuzzySet(20, 24, 28, 31);
+FuzzySet *UdaraPanas = new FuzzySet(31, 38, 45, 52);
+
+//OUTPUT 1 PWM
+FuzzySet *Redup = new FuzzySet(1, 25, 50, 83);
+FuzzySet *Remang = new FuzzySet(84, 111, 136, 169);
+FuzzySet *Terang = new FuzzySet(170, 196, 221, 255);
+
+void setup()
+{
+    Serial.begin(9600);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    Serial.print("Menyambungkan WiFi");
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        Serial.print(".");
+        delay(300);
+    }
+    Serial.println();
+    Serial.print("Menyambungkan IP: ");
+    Serial.println(WiFi.localIP());
+    Serial.println();
+
+    //FIREBASE
+    config.api_key = API_KEY;
+    config.database_url = DATABASE_URL;
+    if (Firebase.signUp(&config, &auth, "", ""))
+    {
+        Serial.println("ok");
+        signupOK = true;
+    }
+    else
+    {
+        Serial.printf("%s\n", config.signer.signupError.message.c_str());
+    }
+    config.token_status_callback = tokenStatusCallback; //Cek addons/TokenHelper.h
+    Firebase.begin(&config, &auth);
+    Firebase.reconnectWiFi(true);
+
+    //HARDWARE
+    Serial.begin(115200);
+    sensors.begin();
+    pinMode(driverPin, OUTPUT);
+    Wire.begin(SDA, SCL);
+    lcd.begin();
+    lcd.createChar(0, simbolderajat);
+
+    //INPUT 1 DS18B20
+    FuzzyInput *analog1 = new FuzzyInput(1);
+    analog1->addFuzzySet(AirDingin);
+    analog1->addFuzzySet(AirNormal);
+    analog1->addFuzzySet(AirPanas);
+    fuzzy->addFuzzyInput(analog1);
+
+    //INPUT 2 DHT11
+    FuzzyInput *analog2 = new FuzzyInput(2);
+    analog2->addFuzzySet(UdaraDingin);
+    analog2->addFuzzySet(UdaraNormal);
+    analog2->addFuzzySet(UdaraPanas);
+    fuzzy->addFuzzyInput(analog2);
+
+    //OUTPUT 1 PWM
+    FuzzyOutput *digital1 = new FuzzyOutput(1);
+    digital1->addFuzzySet(Redup);
+    digital1->addFuzzySet(Remang);
+    digital1->addFuzzySet(Terang);
+    fuzzy->addFuzzyOutput(digital1);
+
+    //RULE 1 IF UdaraPanas AND AirPanas THEN Redup
+    FuzzyRuleAntecedent *UdaraPanas_AirPanas = new FuzzyRuleAntecedent();
+    UdaraPanas_AirPanas->joinWithAND(UdaraPanas, AirPanas);
+    FuzzyRuleConsequent *digital1_Redup1 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Redup1->addOutput(Redup);
+    FuzzyRule *fuzzyRule1 = new FuzzyRule(1, UdaraPanas_AirPanas, digital1_Redup1);
+    fuzzy->addFuzzyRule(fuzzyRule1);
+
+    // RULE 2 IF UdaraPanas AND AirNormal THEN Remang
+    FuzzyRuleAntecedent *UdaraPanas_AirNormal = new FuzzyRuleAntecedent();
+    UdaraPanas_AirNormal->joinWithAND(UdaraPanas, AirNormal);
+    FuzzyRuleConsequent *digital1_Remang2 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Remang2->addOutput(Remang);
+    FuzzyRule *fuzzyRule2 = new FuzzyRule(2, UdaraPanas_AirNormal, digital1_Remang2);
+    fuzzy->addFuzzyRule(fuzzyRule2);
+
+    // RULE 3 IF UdaraPanas AND AirDingin THEN Terang
+    FuzzyRuleAntecedent *UdaraPanas_AirDingin = new FuzzyRuleAntecedent();
+    UdaraPanas_AirDingin->joinWithAND(UdaraPanas, AirDingin);
+    FuzzyRuleConsequent *digital1_Terang3 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Terang3->addOutput(Terang);
+    FuzzyRule *fuzzyRule3 = new FuzzyRule(3, UdaraPanas_AirDingin, digital1_Terang3);
+    fuzzy->addFuzzyRule(fuzzyRule3);
+
+    // RULE 4 IF UdaraNormal AND AirPanas THEN Redup
+    FuzzyRuleAntecedent *UdaraNormal_AirPanas = new FuzzyRuleAntecedent();
+    UdaraNormal_AirPanas->joinWithAND(UdaraNormal, AirPanas);
+    FuzzyRuleConsequent *digital1_Redup4 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Redup4->addOutput(Redup);
+    FuzzyRule *fuzzyRule4 = new FuzzyRule(4, UdaraNormal_AirPanas, digital1_Redup4);
+    fuzzy->addFuzzyRule(fuzzyRule4);
+
+    // RULE 5 IF UdaraNormal AND AirNormal THEN Remang
+    FuzzyRuleAntecedent *UdaraNormal_AirNormal = new FuzzyRuleAntecedent();
+    UdaraNormal_AirNormal->joinWithAND(UdaraNormal, AirNormal);
+    FuzzyRuleConsequent *digital1_Remang5 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Remang5->addOutput(Remang);
+    FuzzyRule *fuzzyRule5 = new FuzzyRule(5, UdaraNormal_AirNormal, digital1_Remang5);
+    fuzzy->addFuzzyRule(fuzzyRule5);
+
+    // RULE 6 IF UdaraNormal AND AirDingin THEN Terang
+    FuzzyRuleAntecedent *UdaraNormal_AirDingin = new FuzzyRuleAntecedent();
+    UdaraNormal_AirDingin->joinWithAND(UdaraNormal, AirDingin);
+    FuzzyRuleConsequent *digital1_Terang6 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Terang6->addOutput(Terang);
+    FuzzyRule *fuzzyRule6 = new FuzzyRule(6, UdaraNormal_AirDingin, digital1_Terang6);
+    fuzzy->addFuzzyRule(fuzzyRule6);
+
+    // RULE 7 IF UdaraDingin AND AirPanas THEN Remang
+    FuzzyRuleAntecedent *UdaraDingin_AirPanas = new FuzzyRuleAntecedent();
+    UdaraDingin_AirPanas->joinWithAND(UdaraDingin, AirPanas);
+    FuzzyRuleConsequent *digital1_Remang7 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Remang7->addOutput(Remang);
+    FuzzyRule *fuzzyRule7 = new FuzzyRule(7, UdaraDingin_AirPanas, digital1_Remang7);
+    fuzzy->addFuzzyRule(fuzzyRule7);
+
+    // RULE 8 IF UdaraDingin AND AirNormal THEN Terang
+    FuzzyRuleAntecedent *UdaraDingin_AirNormal = new FuzzyRuleAntecedent();
+    UdaraDingin_AirNormal->joinWithAND(UdaraDingin, AirNormal);
+    FuzzyRuleConsequent *digital1_Terang8 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Terang8->addOutput(Terang);
+    FuzzyRule *fuzzyRule8 = new FuzzyRule(8, UdaraDingin_AirNormal, digital1_Terang8);
+    fuzzy->addFuzzyRule(fuzzyRule8);
+
+    // RULE 9 IF UdaraDingin AND AirDingin THEN Terang
+    FuzzyRuleAntecedent *UdaraDingin_AirDingin = new FuzzyRuleAntecedent();
+    UdaraDingin_AirDingin->joinWithAND(UdaraDingin, AirDingin);
+    FuzzyRuleConsequent *digital1_Terang9 = new FuzzyRuleConsequent(); // Corrected variable name
+    digital1_Terang9->addOutput(Terang);
+    FuzzyRule *fuzzyRule9 = new FuzzyRule(9, UdaraDingin_AirDingin, digital1_Terang9);
+    fuzzy->addFuzzyRule(fuzzyRule9);
+}
+
+void loop() {
+  sensors.requestTemperatures();
+  int temperature = sensors.getTempCByIndex(0);
+  Serial.print("Suhu Air: ");
+  Serial.println(temperature);
+  //int in_input1 = suhu;
+  //int in_input2 = temperature;
+  int in_input1 = temperature;
+  int in_input2 = suhu;
+
+  Serial.print("suhu udara: ");
+  Serial.print(suhu);
+  Serial.print(" | ");
+  Serial.print("suhu air: ");
+  Serial.println(temperature);
+
+  fuzzy->setInput(1, in_input1);
+  fuzzy->setInput(2, in_input2);
+  fuzzy->fuzzify();
+  int out_digital1 = fuzzy->defuzzify(1);
+  fuzzyAir = out_digital1;
+
+  persen = map(fuzzyAir,1,255,0,100);
+
+  //PWM Control berdasarkan FUZZY
+  analogWrite(driverPin, fuzzyAir);
+
+  Serial.print("Hasil: ");
+  Serial.println(out_digital1);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Suhu Air: ");
+  lcd.print(temperature);
+  lcd.write((uint8_t)0); // Menampilkan simbol derajat
+  lcd.print("C");
+  lcd.setCursor(0, 1);
+  lcd.print("Fuzzy: ");
+  lcd.print(fuzzyAir);
+  lcd.print("");
+
+  if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0)) { 
+    sendDataPrevMillis = millis(); 
+    
+    if (Firebase.RTDB.getFloat(&fbdo, "/Kelompok4/Suhu")) {  
+      if (fbdo.dataType() == "int") { 
+        suhu =  fbdo.intData(); 
+        Serial.println(suhu); 
+        Serial.println("TYPE: " + fbdo.dataType());
+      } 
+    } 
+    else { 
+      Serial.println(fbdo.errorReason()); 
+    } 
+     
+    if (Firebase.RTDB.setFloat(&fbdo, "/Kelompok2/SuhuAir", temperature)){ 
+      Serial.println("PASSED"); 
+      Serial.println("PATH: " + fbdo.dataPath()); 
+      Serial.println("TYPE: " + fbdo.dataType()); 
+    } 
+    else { 
+      Serial.println("FAILED"); 
+      Serial.println("REASON: " + fbdo.errorReason()); 
+    } 
+  } 
+
+  if (Firebase.RTDB.setFloat(&fbdo,"/Kelompok2/Fuzzy", fuzzyAir)){
+    Serial.println("PASSED");
+    Serial.println("PATH: " + fbdo.dataPath());
+    Serial.println("TYPE: " + fbdo.dataType());
+  }
+  else{
+    Serial.println("FAILED");
+    Serial.println("REASON: " + fbdo.errorReason());
+  }
+
+  Serial.println("=============");
+  delay(1000);
+  
+}
